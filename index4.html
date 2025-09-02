@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JavaScript Execution Context - Interactive Explainer</title>
+  <style>
+    :root{
+      --accent: #2b67d6;
+      --muted: #6b7280;
+      --bg: #f6f9ff;
+      --card: #ffffff;
+      --success: #2e7d32;
+    }
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:#0b1220}
+    header{background:linear-gradient(90deg,var(--accent),#375bd6);color:white;padding:22px 28px}
+    header h1{margin:0;font-size:22px}
+    header p{margin:6px 0 0;font-size:13px;opacity:0.95}
+
+    .container{max-width:1100px;margin:22px auto;padding:0 18px}
+    .grid{display:grid;grid-template-columns:1fr 460px;gap:20px}
+
+    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(17,24,39,0.06);}
+
+    /* Code panel */
+    .code-panel{height:520px;overflow:auto;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,monospace;font-size:13px;border-radius:8px}
+    .code-line{display:block;padding:6px 8px;border-radius:6px}
+    .code-line.num{color:var(--muted);width:36px;display:inline-block}
+    .code-line.current{background:linear-gradient(90deg,rgba(43,103,214,0.07),rgba(69,90,255,0.03));border:1px solid rgba(43,103,214,0.08)}
+
+    /* Visualization */
+    .viz{display:flex;flex-direction:column;gap:12px}
+    .exec-box{border:2px solid rgba(43,103,214,0.16);border-radius:10px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,0.9),rgba(248,250,255,0.9));}
+    .exec-title{font-weight:600;color:var(--accent);margin-bottom:8px}
+    .mem, .thread{display:flex;gap:10px}
+    .mem-list{min-width:200px;padding:10px;border-radius:8px;background:#fbfdff;border:1px solid rgba(15,23,42,0.03)}
+    .mem-item{display:flex;justify-content:space-between;padding:6px 8px;border-radius:6px;margin-bottom:6px;font-size:13px}
+    .mem-key{color:#263238}
+    .mem-val{color:var(--muted)}
+
+    .call-stack{min-height:120px;border-radius:8px;padding:10px;background:#fffefc;border:1px solid rgba(15,23,42,0.03)}
+    .stack-item{background:#fff;padding:8px;border-radius:6px;margin:6px 0;box-shadow:0 2px 6px rgba(17,24,39,0.04);display:flex;justify-content:space-between}
+
+    /* Controls */
+    .controls{display:flex;gap:10px;align-items:center;margin-top:12px}
+    button{border:0;background:var(--accent);color:white;padding:10px 14px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,103,214,0.12)}
+    button.warn{background:#d32f2f}
+
+    .explain{font-size:14px;color:#0b1220;padding:10px;background:#fbfdff;border-radius:8px;border:1px solid rgba(15,23,42,0.03)}
+
+    footer{max-width:1100px;margin:18px auto;padding:12px 18px;color:var(--muted);font-size:13px}
+
+    /* responsive */
+    @media (max-width:980px){.grid{grid-template-columns:1fr;}.code-panel{height:340px}.container{padding:0 12px}}
+
+  </style>
+</head>
+<body>
+  <header>
+    <h1>JavaScript Execution Context - Interactive Lecture</h1>
+    <p>Step through what the JavaScript engine does when it runs a simple program. Use this in class to explain each concept with visuals.</p>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2 style="margin:0 0 10px">Code - Example Program</h2>
+        <div id="code" class="code-panel" aria-label="Code panel" role="region"></div>
+
+        <div class="controls">
+          <button id="prevBtn" class="ghost">Previous</button>
+          <button id="stepBtn">Step</button>
+          <button id="playBtn">Auto play</button>
+          <button id="resetBtn" class="ghost">Reset</button>
+          <div style="margin-left:auto;color:var(--muted);font-size:13px">Line highlight updates as you step</div>
+        </div>
+
+        <div style="margin-top:12px" class="explain" id="stepExplain">
+          Click Step to begin. Each step shows how memory, execution, and the call stack change.
+        </div>
+      </div>
+
+      <div class="card viz">
+        <div class="exec-box" id="globalExec">
+          <div class="exec-title">Global Execution Context</div>
+          <div style="display:flex;gap:12px">
+            <div style="flex:1">
+              <div style="font-weight:600;margin-bottom:8px">Memory component - Variable environment</div>
+              <div id="globalMem" class="mem-list" aria-live="polite"></div>
+            </div>
+            <div style="width:160px">
+              <div style="font-weight:600;margin-bottom:8px">Thread component</div>
+              <div style="padding:8px;background:#fff;border-radius:8px;border:1px dashed rgba(15,23,42,0.04);">Exec order - sequential</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="exec-box" style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+          <div style="font-weight:600;color:var(--accent)">Call stack</div>
+          <div id="callStack" class="call-stack" aria-live="polite"></div>
+        </div>
+
+        <div class="exec-box" style="margin-top:8px">
+          <div style="font-weight:600;color:var(--accent);margin-bottom:8px">Active function context</div>
+          <div id="funcExec" style="display:none">
+            <div style="font-size:13px;margin-bottom:6px;color:var(--muted)">Local memory for the current function</div>
+            <div id="localMem" class="mem-list"></div>
+          </div>
+          <div id="noFunc" style="color:var(--muted);font-size:13px">No function running right now</div>
+        </div>
+
+        <div class="exec-box" style="margin-top:8px">
+          <div style="font-weight:600;color:var(--accent);margin-bottom:8px">Deep explanation for current step</div>
+          <div id="deepExplain" style="min-height:120px;color:#0b1220"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="margin-top:18px" class="card">
+      <h3 style="margin-top:0">Instructor notes and step by step text</h3>
+      <div style="color:var(--muted);font-size:14px">
+        This interactive page is designed to support a live lecture. Each step is accompanied by a visual change and a written explanation. Use the stepper to demonstrate the two phase lifecycle of an execution context - memory allocation then execution - and how nested function calls add contexts to the call stack, then remove them when they return.
+      </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;padding:8px 10px;background:linear-gradient(90deg,#f4f7ff,#fff);border-radius:8px">Full lecture transcript and teaching hints</summary>
+        <div style="padding:12px;color:#0b1220">
+          <ol>
+            <li>When the program starts, the engine creates a global execution context and allocates memory for all top level variables and function declarations. Variables get a placeholder value undefined. Functions have their code placed in memory as callable objects.</li>
+            <li>After this initial allocation phase, the engine runs the code line by line. Assignments replace placeholders with actual values. Function invocations create a new execution context with its own local memory and execution thread.</li>
+            <li>Each function context is pushed to the call stack when invoked. When a function returns, that context is popped and control returns to the caller context. Global context remains until program end.</li>
+            <li>Use the visual step actions to show parameter passing, local variable population, computation, return, and deletion of the function context.</li>
+          </ol>
+          <p style="margin-top:8px">Teaching tips: pause at the memory allocation step and ask students why variables are undefined. Ask them how hoisting of functions makes functions available in the memory phase. For advanced classes, discuss how asynchronous APIs and the event loop change execution order while the JavaScript runtime remains single threaded.</p>
+        </div>
+      </details>
+      <div style="margin-top:12px;color:var(--muted);font-size:13px">Prepared by: ChatGPT - GPT-5 Thinking mini</div>
+    </div>
+
+  </div>
+
+  <footer>
+    This file is self contained. Open the page in any modern browser. To use in class, present the stepper and narrate each update shown in the memory panel and the call stack panel.
+  </footer>
+
+  <script>
+    // Example program represented as lines with numbers
+    const codeLines = [
+      '1  const n = 2;',
+      '2  function square(num) {',
+      '3    let ans = num * num;',
+      '4    return ans;',
+      '5  }',
+      "6  let square2 = square(n);",
+      "7  let square4 = square(square2);",
+      '8  // program complete'
+    ];
+
+    // Steps mirror the narrative: memory allocation then code execution and function calls
+    const steps = [
+      {
+        id:0,
+        highlight: null,
+        explain: 'Start: create global execution context. Memory allocation phase - reserve memory for top level variables and functions. Variables get placeholder undefined. Function identifier holds the function object.',
+        globalMem: {n: 'undefined', square: '[function]', square2: 'undefined', square4: 'undefined'},
+        stack:['Global execution context'],
+        local:null
+      },
+      {
+        id:1,
+        highlight:1,
+        explain: 'Code execution phase - execute line 1. Assign 2 to n. This replaces undefined with 2 in global memory.',
+        globalMem: {n: 2, square: '[function]', square2: 'undefined', square4: 'undefined'},
+        stack:['Global execution context'],
+        local:null
+      },
+      {
+        id:2,
+        highlight:6,
+        explain: 'Encounter function call square(n). Create a new function execution context and push it to the call stack. Local memory is created for parameters and local variables with placeholder undefined.',
+        globalMem: {n: 2, square: '[function]', square2: 'undefined', square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local: {num:'undefined', ans:'undefined'}
+      },
+      {
+        id:3,
+        highlight:2,
+        explain: 'Inside function - parameter passing. The argument value 2 from global n is assigned to the local parameter num.',
+        globalMem: {n: 2, square: '[function]', square2: 'undefined', square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local: {num:2, ans:'undefined'}
+      },
+      {
+        id:4,
+        highlight:3,
+        explain: 'Execute computation: ans = num * num. This calculates 4 and stores it in the local variable ans.',
+        globalMem: {n: 2, square: '[function]', square2: 'undefined', square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local: {num:2, ans:4}
+      },
+      {
+        id:5,
+        highlight:4,
+        explain: 'Return statement executes. The function returns the local value 4. The function execution context is removed from the call stack. Global variable square2 receives the returned value.',
+        globalMem: {n: 2, square: '[function]', square2:4, square4: 'undefined'},
+        stack:['Global execution context'],
+        local:null
+      },
+      {
+        id:6,
+        highlight:7,
+        explain: 'Next call: square(square2). A new function execution context is created and pushed to the stack. Local placeholders are created again.',
+        globalMem: {n: 2, square: '[function]', square2:4, square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local:{num:'undefined', ans:'undefined'}
+      },
+      {
+        id:7,
+        highlight:2,
+        explain: 'Parameter passing: the value 4 is assigned to the local parameter num in the new function context.',
+        globalMem: {n: 2, square: '[function]', square2:4, square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local:{num:4, ans:'undefined'}
+      },
+      {
+        id:8,
+        highlight:3,
+        explain: 'Compute ans = num * num which becomes 16 and store it locally.',
+        globalMem: {n: 2, square: '[function]', square2:4, square4: 'undefined'},
+        stack:['Global execution context','square execution context'],
+        local:{num:4, ans:16}
+      },
+      {
+        id:9,
+        highlight:4,
+        explain: 'Return 16 to caller. Pop the function context and assign the return value to square4. Program then completes and the global execution context is removed at program end.',
+        globalMem: {n: 2, square: '[function]', square2:4, square4:16},
+        stack:[],
+        local:null
+      }
+    ];
+
+    // Render code lines
+    const codeEl = document.getElementById('code');
+    codeLines.forEach((line,i)=>{
+      const div = document.createElement('div');
+      div.className = 'code-line';
+      div.id = 'line-'+i;
+      div.innerHTML = '<span class="code-line num">'+(i+1)+'</span><span>'+escapeHtml(line.substring(3))+'</span>';
+      codeEl.appendChild(div);
+    });
+
+    // Utility to render global memory and call stack
+    function renderGlobalMem(mem){
+      const el = document.getElementById('globalMem');
+      el.innerHTML = '';
+      for(const k of Object.keys(mem)){
+        const item = document.createElement('div');
+        item.className = 'mem-item';
+        item.innerHTML = '<div class="mem-key">'+k+'</div><div class="mem-val">'+String(mem[k])+'</div>';
+        el.appendChild(item);
+      }
+    }
+    function renderStack(stack){
+      const el = document.getElementById('callStack');
+      el.innerHTML = '';
+      if(stack.length===0){
+        el.innerHTML = '<div style="color:var(--muted)">Call stack is empty</div>';
+        return;
+      }
+      // show top at top
+      for(let i = stack.length-1;i>=0;i--){
+        const item = document.createElement('div');
+        item.className = 'stack-item';
+        item.innerHTML = '<div>'+stack[i]+'</div><div style="color:var(--muted)">level '+(i+1)+'</div>';
+        el.appendChild(item);
+      }
+    }
+    function renderLocal(local){
+      const funcEl = document.getElementById('funcExec');
+      const none = document.getElementById('noFunc');
+      const localEl = document.getElementById('localMem');
+      if(!local){
+        funcEl.style.display = 'none';
+        none.style.display = 'block';
+        localEl.innerHTML = '';
+        return;
+      }
+      funcEl.style.display = 'block';
+      none.style.display = 'none';
+      localEl.innerHTML = '';
+      for(const k of Object.keys(local)){
+        const item = document.createElement('div');
+        item.className = 'mem-item';
+        item.innerHTML = '<div class="mem-key">'+k+'</div><div class="mem-val">'+String(local[k])+'</div>';
+        localEl.appendChild(item);
+      }
+    }
+
+    function escapeHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+    // Step control logic
+    let current = -1;
+    let playing = false;
+    const stepExplain = document.getElementById('stepExplain');
+    const deepExplain = document.getElementById('deepExplain');
+
+    function updateView(stepIdx){
+      // clear previous highlight
+      document.querySelectorAll('.code-line').forEach(n=>n.classList.remove('current'));
+      if(stepIdx>=0 && steps[stepIdx].highlight!==null){
+        const lineIndex = steps[stepIdx].highlight - 1; // highlight uses code numbers
+        const el = document.getElementById('line-'+lineIndex);
+        if(el) el.classList.add('current');
+        // ensure visible
+        el && el.scrollIntoView({behavior:'smooth',block:'center'});
+      }
+      // render memory and stack
+      const s = steps[stepIdx] || steps[0];
+      renderGlobalMem(s.globalMem);
+      renderStack(s.stack);
+      renderLocal(s.local);
+      stepExplain.textContent = s.explain;
+      deepExplain.innerHTML = explainForStep(s.id);
+    }
+
+    function explainForStep(id){
+      // provide a more detailed explanation for each step in formal tone
+      switch(id){
+        case 0:
+          return '<strong>Memory allocation phase</strong><br>Global variables are created and assigned the placeholder value undefined. Function declarations are stored so they are callable during execution.';
+        case 1:
+          return '<strong>Assignment in execution phase</strong><br>The engine runs the first statement and places the value 2 into the global identifier n. This completes the assignment for that variable.';
+        case 2:
+          return '<strong>Function invocation begins</strong><br>A new execution context for the function is constructed. The runtime reserves space for the function parameter and local variables with placeholder undefined. The new context is pushed to the call stack.';
+        case 3:
+          return '<strong>Parameter passing</strong><br>The value from the calling context is copied into the new context parameter. In this example the value 2 moves from global n to the local parameter num.';
+        case 4:
+          return '<strong>Perform computation</strong><br>The engine evaluates num times num and stores the result in the local variable ans.';
+        case 5:
+          return '<strong>Return and cleanup</strong><br>The return instruction transfers the local result back to the caller. The function context is popped from the call stack and its local memory becomes unreachable.';
+        case 6:
+          return '<strong>Second function call</strong><br>Another function context is created and pushed. This demonstrates reentry to the same function with different local data.';
+        case 7:
+          return '<strong>Parameter assignment in second call</strong><br>The value 4 is assigned to the new local parameter num.';
+        case 8:
+          return '<strong>Second computation</strong><br>The local ans becomes 16 after calculation.';
+        case 9:
+          return '<strong>Final return and program completion</strong><br>The value 16 is returned and placed into global square4. The call stack becomes empty and the program ends.';
+        default:
+          return '';
+      }
+    }
+
+    document.getElementById('stepBtn').addEventListener('click',()=>{
+      if(current < steps.length-1) current++;
+      updateView(current);
+    });
+    document.getElementById('prevBtn').addEventListener('click',()=>{
+      if(current > 0) current--;
+      updateView(current);
+    });
+    document.getElementById('resetBtn').addEventListener('click',()=>{current = -1;renderGlobalMem(steps[0].globalMem);renderStack(steps[0].stack);renderLocal(steps[0].local);stepExplain.textContent = 'Click Step to begin. Each step shows how memory, execution, and the call stack change.';deepExplain.innerHTML='';document.querySelectorAll('.code-line').forEach(n=>n.classList.remove('current'));});
+
+    let playTimer = null;
+    document.getElementById('playBtn').addEventListener('click',()=>{
+      if(playing){
+        playing = false;clearInterval(playTimer);document.getElementById('playBtn').textContent = 'Auto play';
+      } else {
+        playing = true;document.getElementById('playBtn').textContent = 'Pause';
+        playTimer = setInterval(()=>{
+          if(current < steps.length-1){ current++; updateView(current); } else { clearInterval(playTimer); playing=false; document.getElementById('playBtn').textContent = 'Auto play'; }
+        },1000);
+      }
+    });
+
+    // Initialize view with allocation step
+    updateView(0);
+
+    // Accessibility: keyboard controls
+    window.addEventListener('keydown',e=>{
+      if(e.key === 'ArrowRight') document.getElementById('stepBtn').click();
+      if(e.key === 'ArrowLeft') document.getElementById('prevBtn').click();
+      if(e.key === ' ') { e.preventDefault(); document.getElementById('playBtn').click(); }
+    });
+
+  </script>
+</body>
+</html>

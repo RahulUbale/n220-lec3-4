@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Understanding JavaScript Execution Context</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    header {
+      background: #3949ab;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    main {
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    section {
+      margin-bottom: 30px;
+    }
+
+    h2 {
+      color: #3949ab;
+      border-bottom: 2px solid #3949ab;
+      padding-bottom: 5px;
+    }
+
+    .box-container {
+      display: flex;
+      justify-content: space-around;
+      margin: 20px 0;
+    }
+
+    .box {
+      flex: 1;
+      margin: 10px;
+      padding: 20px;
+      border: 2px solid #3949ab;
+      border-radius: 10px;
+      background: white;
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.3s;
+    }
+
+    .box:hover {
+      transform: scale(1.05);
+    }
+
+    .highlight {
+      background: #e8eaf6;
+      padding: 10px;
+      border-left: 5px solid #3949ab;
+      margin: 15px 0;
+    }
+
+    .recap {
+      background: #f1f8e9;
+      padding: 15px;
+      border-left: 5px solid #558b2f;
+      margin-top: 30px;
+      border-radius: 8px;
+    }
+
+    button {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #3949ab;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #303f9f;
+    }
+
+    .info {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>JavaScript Execution Context</h1>
+    <p>Explaining how JavaScript code is stored and executed</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>1. What is the Execution Context?</h2>
+      <p>
+        In JavaScript, all code runs inside a special environment called the <strong>Execution Context</strong>. 
+        You can think of it as a container where both data and instructions are handled.
+      </p>
+      <div class="highlight">
+        The Execution Context has two main parts: 
+        <strong>Memory Component</strong> and <strong>Code Component</strong>.
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Two Components of Execution Context</h2>
+      <div class="box-container">
+        <div class="box">
+          <h3>Memory Component</h3>
+          <p>
+            Stores variables and functions in the form of <em>key-value pairs</em>.
+            It is also called the <strong>Variable Environment</strong>.
+          </p>
+        </div>
+        <div class="box">
+          <h3>Code Component</h3>
+          <p>
+            Executes code line by line. 
+            It is also known as the <strong>Thread of Execution</strong>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Synchronous & Single-Threaded Nature</h2>
+      <p>
+        JavaScript follows a <strong>synchronous single-threaded</strong> model. This means:
+      </p>
+      <ul>
+        <li>Only one command runs at a time.</li>
+        <li>Each line is executed in order.</li>
+        <li>The next line runs only after the current one finishes.</li>
+      </ul>
+
+      <button onclick="toggleInfo()">Show Example</button>
+      <div class="info" id="exampleBox">
+        <p>Example: If you have three console.log statements, they will run one after another, in sequence.</p>
+        <pre><code>console.log("Step 1");
+console.log("Step 2");
+console.log("Step 3");</code></pre>
+      </div>
+    </section>
+
+    <section class="recap">
+      <h2>Quick Recap</h2>
+      <ul>
+        <li>Execution Context is the environment where JavaScript runs.</li>
+        <li>It has two parts:
+          <ul>
+            <li><strong>Memory Component</strong> (Variable Environment)</li>
+            <li><strong>Code Component</strong> (Thread of Execution)</li>
+          </ul>
+        </li>
+        <li>JavaScript runs synchronously and is single-threaded.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+    function toggleInfo() {
+      const box = document.getElementById("exampleBox");
+      box.style.display = box.style.display === "block" ? "none" : "block";
+    }
+  </script>
+</body>
+</html>
